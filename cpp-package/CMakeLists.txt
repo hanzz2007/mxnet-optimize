@@ -11,7 +11,7 @@ add_custom_target(
   BYPRODUCTS ${CPP_PACKAGE_OP_H_HEADER}
   MAIN_DEPENDENCY mxnet
   DEPENDS mxnet ${CMAKE_CURRENT_SOURCE_DIR}/scripts/OpWrapperGenerator.py
-  COMMAND echo "Running: OpWrapperGenerator.py"
+  COMMAND echo "Running: OpWrapperGenerator.py" $<TARGET_FILE:mxnet>
   COMMAND python OpWrapperGenerator.py $<TARGET_FILE:mxnet>
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts
 )

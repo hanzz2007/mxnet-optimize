@@ -308,6 +308,7 @@ def ParseAllOps():
                                               const char ***arg_descriptions,
                                               const char **key_var_num_args);
     """
+    print(sys.argv[1])
     cdll.libmxnet = cdll.LoadLibrary(sys.argv[1])
     ListOP = cdll.libmxnet.MXSymbolListAtomicSymbolCreators
     GetOpInfo = cdll.libmxnet.MXSymbolGetAtomicSymbolInfo
@@ -378,6 +379,13 @@ if __name__ == "__main__":
     #    decl = decl + "=" + arg.defaultString
     #print(decl)
 
+    old_cwd = os.getcwd()
+    os.environ['path'] += ';' + os.path.split(sys.argv[1])[0]
+    print(os.path.split(sys.argv[1])[0])
+    print(sys.argv[1])
+    os.chdir(os.path.split(sys.argv[1])[0])
+    cdll.LoadLibrary(sys.argv[1])
+
     temp_file_name = ""
     output_file = '../include/mxnet-cpp/op.h'
     try:
@@ -413,7 +421,10 @@ if __name__ == "__main__":
         temp_file_name = tf.name
         tf.close()
         with codecs.open(temp_file_name, 'w', 'utf-8') as f:
-            f.write(patternStr % ParseAllOps())
+            ops = ParseAllOps()
+            os.chdir(old_cwd)
+            print('writeln: ', patternStr % ops, '\r\n')
+            f.write(patternStr % ops)
     except Exception as e:
       if (os.path.exists(output_file)):
         os.remove(output_file)

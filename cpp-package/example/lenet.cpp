@@ -92,32 +92,34 @@ class Lenet {
 
     /*prepare the data*/
     vector<float> data_vec, label_vec;
-    size_t data_count = GetData(&data_vec, &label_vec);
+    size_t data_count = 10; //GetData(&data_vec, &label_vec);
     const float *dptr = data_vec.data();
     const float *lptr = label_vec.data();
-    NDArray data_array = NDArray(Shape(data_count, 1, W, H), ctx_cpu,
+
+    Context ctx_gpu(DeviceType::kGPU, 0);
+    NDArray data_array = NDArray(Shape(data_count, 1, W, H), ctx_gpu,
                                  false);  // store in main memory, and copy to
     // device memory while training
     NDArray label_array =
-      NDArray(Shape(data_count), ctx_cpu,
+      NDArray(Shape(data_count), ctx_gpu,
                 false);  // it's also ok if just store them all in device memory
-    data_array.SyncCopyFromCPU(dptr, data_count * W * H);
-    label_array.SyncCopyFromCPU(lptr, data_count);
-    data_array.WaitToRead();
-    label_array.WaitToRead();
+//     data_array.SyncCopyFromCPU(dptr, data_count * W * H);
+//     label_array.SyncCopyFromCPU(lptr, data_count);
+//     data_array.WaitToRead();
+//     label_array.WaitToRead();
 
-    size_t train_num = data_count * (1 - val_fold / 10.0);
-    train_data = data_array.Slice(0, train_num);
-    train_label = label_array.Slice(0, train_num);
-    val_data = data_array.Slice(train_num, data_count);
-    val_label = label_array.Slice(train_num, data_count);
+//     size_t train_num = data_count * (1 - val_fold / 10.0);
+//     train_data = data_array.Slice(0, train_num);
+//     train_label = label_array.Slice(0, train_num);
+//     val_data = data_array.Slice(train_num, data_count);
+//     val_label = label_array.Slice(train_num, data_count);
 
     LG << "here read fin";
 
     /*init some of the args*/
     // map<string, NDArray> args_map;
-    args_map["data"] = data_array.Slice(0, batch_size).Copy(ctx_dev);
-    args_map["data_label"] = label_array.Slice(0, batch_size).Copy(ctx_dev);
+    args_map["data"] = data_array; // .Slice(0, batch_size).Copy(ctx_dev);
+//     args_map["data_label"] = label_array.Slice(0, batch_size).Copy(ctx_dev);
     NDArray::WaitAll();
 
     LG << "here slice fin";
@@ -133,43 +135,43 @@ class Lenet {
     // args_map["fc1_b"] = 0;
 
     lenet.InferArgsMap(ctx_dev, &args_map, args_map);
-    Optimizer* opt = OptimizerRegistry::Find("ccsgd");
-    opt->SetParam("momentum", 0.9)
-       ->SetParam("rescale_grad", 1.0)
-       ->SetParam("clip_gradient", 10)
-       ->SetParam("lr", learning_rate)
-       ->SetParam("wd", weight_decay);
-
+//     Optimizer* opt = OptimizerRegistry::Find("ccsgd");
+//     opt->SetParam("momentum", 0.9)
+//        ->SetParam("rescale_grad", 1.0)
+//        ->SetParam("clip_gradient", 10)
+//        ->SetParam("lr", learning_rate)
+//        ->SetParam("wd", weight_decay);
+// 
     Executor *exe = lenet.SimpleBind(ctx_dev, args_map);
     auto arg_names = lenet.ListArguments();
 
-    for (int ITER = 0; ITER < max_epoch; ++ITER) {
-      size_t start_index = 0;
-      while (start_index < train_num) {
-        if (start_index + batch_size > train_num) {
-          start_index = train_num - batch_size;
-        }
-        args_map["data"] =
-            train_data.Slice(start_index, start_index + batch_size)
-                .Copy(ctx_dev);
-        args_map["data_label"] =
-            train_label.Slice(start_index, start_index + batch_size)
-                .Copy(ctx_dev);
-        start_index += batch_size;
-        NDArray::WaitAll();
-
-        exe->Forward(true);
-        exe->Backward();
-        // Update parameters
-        for (size_t i = 0; i < arg_names.size(); ++i) {
-          if (arg_names[i] == "data" || arg_names[i] == "data_label") continue;
-          opt->Update(i, exe->arg_arrays[i], exe->grad_arrays[i]);
-        }
-      }
-
-      LG << "Iter " << ITER
-         << ", accuracy: " << ValAccuracy(batch_size * 10, lenet);
-    }
+//     for (int ITER = 0; ITER < max_epoch; ++ITER) {
+//       size_t start_index = 0;
+//       while (start_index < train_num) {
+//         if (start_index + batch_size > train_num) {
+//           start_index = train_num - batch_size;
+//         }
+//         args_map["data"] =
+//             train_data.Slice(start_index, start_index + batch_size)
+//                 .Copy(ctx_dev);
+//         args_map["data_label"] =
+//             train_label.Slice(start_index, start_index + batch_size)
+//                 .Copy(ctx_dev);
+//         start_index += batch_size;
+//         NDArray::WaitAll();
+// 
+//         exe->Forward(true);
+//         exe->Backward();
+//         // Update parameters
+//         for (size_t i = 0; i < arg_names.size(); ++i) {
+//           if (arg_names[i] == "data" || arg_names[i] == "data_label") continue;
+//           opt->Update(i, exe->arg_arrays[i], exe->grad_arrays[i]);
+//         }
+//       }
+// 
+//       LG << "Iter " << ITER
+//          << ", accuracy: " << ValAccuracy(batch_size * 10, lenet);
+//     }
     delete exe;
   }
 
