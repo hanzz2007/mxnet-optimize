@@ -24,6 +24,7 @@
 // this will be invoked by gcc and compile CPU version
 #include "./matrix_op-inl.h"
 #include "./elemwise_unary_op.h"
+#include "nnvm/op_attr_types.h"
 
 namespace mxnet {
 namespace op {
@@ -283,6 +284,56 @@ Example::
 .set_attr<nnvm::FGradient>("FGradient", ElemwiseGradUseNone{"_backward_slice"})
 .set_attr<FCompute>("FCompute<cpu>", Slice<cpu>)
 .set_attr<FComputeEx>("FComputeEx<cpu>", SliceEx<cpu>)
+.set_attr<nnvm::FMemorySplit>("FMemorySplit", [](const nnvm::NodeAttrs& attrs,
+    const std::vector<nnvm::TShape>& inputs,
+    const std::vector<nnvm::TShape>& outputs)
+{
+    const TShape data_shape = inputs[0];
+    std::vector<int64_t> offset_vec(outputs.size(), -1);
+
+    const auto& param = dmlc::get<SliceParam>(attrs.parsed);
+    index_t N = inputs[0].ndim();
+    TShape begin(N), end(N);
+    for (index_t i = 0; i < N; ++i) {
+        int s = 0;
+        if (i < param.begin.ndim() && param.begin[i]) {
+            s = *param.begin[i];
+            if (s < 0) {
+                s += data_shape[i];
+                CHECK(s >= 0)
+                    << "Invalid slicing begin " << param.begin << " and end "
+                    << param.end << " for data of shape " << data_shape;
+            }
+        }
+        begin[i] = s;
+        end[i] = s + outputs[0][i];
+    }
+
+    offset_vec[0] = slice_offset(data_shape, begin, end);
+    return offset_vec;
+//     size_t sdim = 0;
+//     for (size_t i = 0; i < param.end.ndim(); ++i) {
+//         size_t slice_range = *param.end[i] - *param.begin[i];
+//         if (slice_range != data_shape[i]) {
+//             sdim = i;
+//             break;
+//         }
+//     }
+// 
+//     size_t leading = data_shape.ProdShape(0, sdim);
+//     if (leading != 1) {
+//         return offset_vec;
+//     }
+// 
+//     for (size_t i = sdim + 1; i < param.end.ndim(); ++i) {
+//         if (*param.end[i] - *param.begin[i] != data_shape[i]) {
+//             return offset_vec;
+//         }
+//     }
+// 
+//     offset_vec[0] = data_shape.ProdShape(sdim, data_shape.ndim()) * (*param.begin[sdim]);
+//     return offset_vec;
+})
 .add_argument("data", "NDArray-or-Symbol", "Source input")
 .add_arguments(SliceParam::__FIELDS__());
 

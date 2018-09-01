@@ -865,7 +865,9 @@ void GraphExecutor::FinishInitGraph(nnvm::Symbol symbol,
       if (vstorage_type[i] != kDefaultStorage) arg_storage_id[i] = kDynamicStorageID;
     }
     g.attrs["storage"] = std::make_shared<dmlc::any>(std::move(arg_storage_id));
-    g = nnvm::ApplyPass(g, "PlanMemory");
+
+    std::string plan_memory_type = dmlc::GetEnv<std::string>("MXNET_PLAN_MEMORY_TYPE", "PlanMemoryFused");
+    g = nnvm::ApplyPass(g, plan_memory_type);
   }
   g = DetectInplaceAddTo(g);
 
@@ -1050,6 +1052,9 @@ void GraphExecutor::InitDataEntryMemory(std::vector<NDArray>* shared_pool) {
   const auto& vstorage = graph_.GetAttr<StorageVector>("storage_id");
   const auto& vstorage_type = graph_.GetAttr<StorageTypeVector>("storage_type");
   const auto& vctx = graph_.GetAttr<ContextVector>("context");
+  const auto& vsid_size = graph_.GetAttr<std::vector<size_t>>("sid_size");
+  const auto& ventry_offset = graph_.GetAttr<std::vector<size_t>>("entry_offset");
+
   CHECK_EQ(idx.num_node_entries(), vshape.size());
   CHECK_EQ(idx.num_node_entries(), vdtype.size());
   CHECK_EQ(idx.num_node_entries(), vstorage.size());
@@ -1111,6 +1116,14 @@ void GraphExecutor::InitDataEntryMemory(std::vector<NDArray>* shared_pool) {
       info.bytes = std::max(info.bytes, bytes);
     }
   }
+
+  for (size_t i = 0; i < pool_info.size(); ++i) {
+      if (vsid_size[i] > 0) {
+          CHECK_LE(pool_info[i].bytes, vsid_size[i]);
+          pool_info[i].bytes = vsid_size[i];
+      }
+  }
+  
   // construct the re-use pool, if needed
   std::multimap<size_t, NDArray> free_pool;
   if (shared_pool != nullptr) {
@@ -1171,9 +1184,21 @@ void GraphExecutor::InitDataEntryMemory(std::vector<NDArray>* shared_pool) {
     if (storage_type == kDefaultStorage) {
       CHECK_GE(storage_id, 0) << "Do not support runtime shape op yet";
       const NDArray& src = data_pool_.at(storage_id);
-      data_entry_[i] = src.AsArray(vshape[i], vdtype[i]);
+      auto sid_bytes = vsid_size[storage_id];
+      if (sid_bytes > 0)
+      {
+          auto entry_bytes = vshape[i].Size() * mshadow::mshadow_sizeof(vdtype[i]);
+          NDArray src_1d = src.AsArray(nnvm::TShape({static_cast<nnvm::dim_t>(sid_bytes), 1 }), mshadow::kInt8);
+          NDArray dst_1d = src_1d.Slice(ventry_offset[i], entry_bytes + ventry_offset[i]);
+          data_entry_[i] = dst_1d.AsArray(vshape[i], vdtype[i]);
+      }
+      else {
+          data_entry_[i] = src.AsArray(vshape[i], vdtype[i]);
+      }
     } else {
-      data_entry_[i] = NDArray(storage_type, vshape[i], data_context[i]);
+        CHECK_LE(vsid_size[i], 0);
+        CHECK_LE(ventry_offset[i], 0);
+        data_entry_[i] = NDArray(storage_type, vshape[i], data_context[i]);
     }
     if (log_verbose_) {
       LOG(INFO) << "\tinit data entry\t" << i << "\tas " << common::stype_string(storage_type);

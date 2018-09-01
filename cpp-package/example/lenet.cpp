@@ -35,7 +35,7 @@ class Lenet {
  public:
   Lenet()
       : ctx_cpu(Context(DeviceType::kCPU, 0)),
-        ctx_dev(Context(DeviceType::kGPU, 0)) {}
+        ctx_dev(Context(DeviceType::kCPU, 0)) {}
   void Run() {
     /*
      * LeCun, Yann, Leon Bottou, Yoshua Bengio, and Patrick Haffner.
@@ -175,6 +175,188 @@ class Lenet {
     delete exe;
   }
 
+
+  void Run2() {
+      /*
+       * LeCun, Yann, Leon Bottou, Yoshua Bengio, and Patrick Haffner.
+       * "Gradient-based learning applied to document recognition."
+       * Proceedings of the IEEE (1998)
+       * */
+
+       /*define the symbolic net*/
+//       gen_sym();
+//       gen_sym();
+
+      auto lenet = gen_sym2();
+//       Symbol conv3 = Convolution("conv3", pool2, conv3_w, conv3_b,
+//           Shape(2, 2), 500);
+//       Symbol tanh3 = Activation("tanh3", conv3, ActivationActType::kTanh);
+//       Symbol pool3 = Pooling("pool3", tanh3, Shape(2, 2), PoolingPoolType::kMax,
+//           false, false, PoolingPoolingConvention::kValid, Shape(1, 1));
+// 
+//       Symbol flatten = Flatten("flatten", pool3);
+//       Symbol fc1 = FullyConnected("fc1", flatten, fc1_w, fc1_b, 500);
+//       Symbol tanh4 = Activation("tanh4", fc1, ActivationActType::kTanh);
+//       Symbol fc2 = FullyConnected("fc2", tanh4, fc2_w, fc2_b, 10);
+
+      for (auto s : lenet.ListArguments()) {
+          LG << s;
+      }
+
+      /*setup basic configs*/
+      int val_fold = 1;
+      int W = 28;
+      int H = 28;
+      int batch_size = 42;
+      int max_epoch = 100000;
+      float learning_rate = 1e-4;
+      float weight_decay = 1e-4;
+
+      /*prepare the data*/
+      vector<float> data_vec, label_vec;
+      size_t data_count = 1; //GetData(&data_vec, &label_vec);
+      const float *dptr = data_vec.data();
+      const float *lptr = label_vec.data();
+
+      Context ctx_gpu(DeviceType::kCPU, 0);
+      NDArray data_array = NDArray(Shape(data_count, 1, W, H), ctx_gpu,
+          false);  // store in main memory, and copy to
+// device memory while training
+      NDArray label_array =
+          NDArray(Shape(data_count), ctx_gpu,
+              false);  // it's also ok if just store them all in device memory
+//     data_array.SyncCopyFromCPU(dptr, data_count * W * H);
+//     label_array.SyncCopyFromCPU(lptr, data_count);
+//     data_array.WaitToRead();
+//     label_array.WaitToRead();
+
+//     size_t train_num = data_count * (1 - val_fold / 10.0);
+//     train_data = data_array.Slice(0, train_num);
+//     train_label = label_array.Slice(0, train_num);
+//     val_data = data_array.Slice(train_num, data_count);
+//     val_label = label_array.Slice(train_num, data_count);
+
+      LG << "here read fin";
+
+      /*init some of the args*/
+      // map<string, NDArray> args_map;
+      args_map["data"] = data_array; // .Slice(0, batch_size).Copy(ctx_dev);
+  //     args_map["data_label"] = label_array.Slice(0, batch_size).Copy(ctx_dev);
+      NDArray::WaitAll();
+
+      LG << "here slice fin";
+      /*
+       * we can also feed in some of the args other than the input all by
+       * ourselves,
+       * fc2-w , fc1-b for example:
+       * */
+       // args_map["fc2_w"] =
+       // NDArray(mshadow::Shape2(500, 4 * 4 * 50), ctx_dev, false);
+       // NDArray::SampleGaussian(0, 1, &args_map["fc2_w"]);
+       // args_map["fc1_b"] = NDArray(mshadow::Shape1(10), ctx_dev, false);
+       // args_map["fc1_b"] = 0;
+
+      lenet.InferArgsMap(ctx_dev, &args_map, args_map);
+      //     Optimizer* opt = OptimizerRegistry::Find("ccsgd");
+      //     opt->SetParam("momentum", 0.9)
+      //        ->SetParam("rescale_grad", 1.0)
+      //        ->SetParam("clip_gradient", 10)
+      //        ->SetParam("lr", learning_rate)
+      //        ->SetParam("wd", weight_decay);
+      // 
+      std::map<std::string, OpReqType> grad_req_map;
+      for (const auto arg_name : args_map) {
+          grad_req_map[arg_name.first] = kNullOp;
+      }
+  Executor *exe = lenet.SimpleBind(ctx_dev, args_map, {}, grad_req_map);
+      auto arg_names = lenet.ListArguments();
+      exe->Forward(false);
+      NDArray::WaitAll();
+      //     for (int ITER = 0; ITER < max_epoch; ++ITER) {
+      //       size_t start_index = 0;
+      //       while (start_index < train_num) {
+      //         if (start_index + batch_size > train_num) {
+      //           start_index = train_num - batch_size;
+      //         }
+      //         args_map["data"] =
+      //             train_data.Slice(start_index, start_index + batch_size)
+      //                 .Copy(ctx_dev);
+      //         args_map["data_label"] =
+      //             train_label.Slice(start_index, start_index + batch_size)
+      //                 .Copy(ctx_dev);
+      //         start_index += batch_size;
+      //         NDArray::WaitAll();
+      // 
+      //         exe->Forward(true);
+      //         exe->Backward();
+      //         // Update parameters
+      //         for (size_t i = 0; i < arg_names.size(); ++i) {
+      //           if (arg_names[i] == "data" || arg_names[i] == "data_label") continue;
+      //           opt->Update(i, exe->arg_arrays[i], exe->grad_arrays[i]);
+      //         }
+      //       }
+      // 
+      //       LG << "Iter " << ITER
+      //          << ", accuracy: " << ValAccuracy(batch_size * 10, lenet);
+      //     }
+      delete exe;
+  }
+
+  Symbol gen_sym()
+  {
+      Symbol data = Symbol::Variable("data");
+      Symbol data_label = Symbol::Variable("data_label");
+      Symbol conv1_w("conv1_w"), conv1_b("conv1_b");
+      Symbol conv2_w("conv2_w"), conv2_b("conv2_b");
+      Symbol conv3_w("conv3_w"), conv3_b("conv3_b");
+      Symbol fc1_w("fc1_w"), fc1_b("fc1_b");
+      Symbol fc2_w("fc2_w"), fc2_b("fc2_b");
+
+      Symbol conv1 =
+          Convolution("conv1", data, conv1_w, conv1_b, Shape(5, 5), 20);
+      Symbol tanh1 = Activation("tanh1", conv1, ActivationActType::kTanh);
+      Symbol pool1 = Pooling("pool1", tanh1, Shape(2, 2), PoolingPoolType::kMax,
+          false, false, PoolingPoolingConvention::kValid, Shape(2, 2));
+
+      Symbol conv2 = Convolution("conv2", data, conv2_w, conv2_b,
+          Shape(5, 5), 50);
+      Symbol tanh2 = Activation("tanh2", conv2, ActivationActType::kTanh);
+      Symbol pool2 = Pooling("pool2", tanh2, Shape(2, 2), PoolingPoolType::kMax,
+          false, false, PoolingPoolingConvention::kValid, Shape(2, 2));
+
+      Symbol concat1 = Concat({ pool1, pool2 }, 2, 1);
+      Symbol fc1 = FullyConnected(concat1, fc1_w, fc1_b, 100);
+
+      return fc1;
+  }
+
+
+  Symbol gen_sym2()
+  {
+      Symbol data = Symbol::Variable("data");
+      Symbol data_label = Symbol::Variable("data_label");
+      Symbol conv1_w("conv1_w"), conv1_b("conv1_b");
+      Symbol conv2_w("conv2_w"), conv2_b("conv2_b");
+      Symbol conv3_w("conv3_w"), conv3_b("conv3_b");
+      Symbol fc1_w("fc1_w"), fc1_b("fc1_b");
+      Symbol fc2_w("fc2_w"), fc2_b("fc2_b");
+
+      Symbol conv1 =
+          Convolution("conv1", data, conv1_w, conv1_b, Shape(5, 5), 60);
+//       Symbol tanh1 = Activation("tanh1", conv1, ActivationActType::kTanh);
+//       Symbol pool1 = Pooling("pool1", tanh1, Shape(2, 2), PoolingPoolType::kMax,
+//           false, false, PoolingPoolingConvention::kValid, Shape(2, 2));
+
+      Symbol sym_split = mxnet::cpp::SliceChannel(conv1, 6);
+      Symbol concat1 = Concat({ sym_split[0], sym_split[1], sym_split[2] }, 3, 1);
+      Symbol concat2 = Concat({ sym_split[3], sym_split[4], sym_split[5] }, 3, 1);
+      
+      Symbol fc1 = FullyConnected(concat1, fc1_w, fc1_b, 100);
+      Symbol fc2 = FullyConnected(concat2, fc1_w, fc1_b, 100);
+
+      return Symbol::Group({ fc1, fc2 });
+  }
+
  private:
   Context ctx_cpu;
   Context ctx_dev;
@@ -257,7 +439,7 @@ class Lenet {
 
 int main(int argc, char const *argv[]) {
   Lenet lenet;
-  lenet.Run();
+  lenet.Run2();
   MXNotifyShutdown();
   return 0;
 }

@@ -153,3 +153,6 @@ model/
 python/mxnet/symbol/gen_*
 python/mxnet/ndarray/gen_*
 python/.eggs
+/PRJ/linux_cpu
+/PRJ/vs2015_cuda90/.vs/mxnet/v15
+/PRJ/vs2015_cuda90

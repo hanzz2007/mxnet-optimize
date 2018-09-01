@@ -24,6 +24,7 @@
 */
 
 #include "./slice_channel-inl.h"
+#include "nnvm/op_attr_types.h"
 
 namespace mxnet {
 namespace op {
@@ -108,7 +109,26 @@ Example::
 .add_argument("data", "NDArray-or-Symbol", "The input")
 .add_arguments(SliceChannelParam::__FIELDS__());
 
-NNVM_REGISTER_OP(SliceChannel).add_alias("split");
+NNVM_REGISTER_OP(SliceChannel).add_alias("split")
+.set_attr<nnvm::FMemorySplit>("FMemorySplit", [](const nnvm::NodeAttrs& attrs,
+    const std::vector<nnvm::TShape>& inputs,
+    const std::vector<nnvm::TShape>& outputs)
+{
+    const TShape data_shape = inputs[0];
+    std::vector<int64_t> offset_vec(outputs.size(), -1);
+
+    const auto& axis = atoi(attrs.dict.at("axis").c_str());
+
+    size_t leading = data_shape.ProdShape(0, axis);
+    if (leading == 1) {
+        size_t offset = 0;
+        for (size_t i = 0; i < outputs.size(); ++i) {
+            offset_vec[i] = offset;
+            offset += outputs[i].Size();
+        }
+    }
+    return offset_vec;
+});
 
 }  // namespace op
 }  // namespace mxnet

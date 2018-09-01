@@ -261,7 +261,6 @@ using FInferStorageType = std::function<bool (const NodeAttrs& attrs,
                                               DispatchMode* dispatch_mode,
                                               std::vector<int>* in_attrs,
                                               std::vector<int>* out_attrs)>;
-
 }  // namespace mxnet
 
 #endif  // MXNET_OP_ATTR_TYPES_H_

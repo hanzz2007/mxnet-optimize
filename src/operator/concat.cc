@@ -29,6 +29,7 @@
 #include "./mkl/mkl_memory-inl.h"
 #include "./mkl/mkl_concat-inl.h"
 #endif  // MXNET_USE_MKL2017
+#include "nnvm/op_attr_types.h"
 
 namespace mxnet {
 namespace op {
@@ -105,7 +106,13 @@ Example::
 .add_arguments(ConcatParam::__FIELDS__())
 .set_key_var_num_args("num_args");
 
-NNVM_REGISTER_OP(Concat).add_alias("concat");
-
+NNVM_REGISTER_OP(Concat)
+.add_alias("concat")
+.set_attr<nnvm::FIsMemoryFusable>("FIsMemoryFusable", [](const nnvm::NodeAttrs& attrs, 
+                           const nnvm::TShape& out_shape)
+{
+    const size_t dim = atoi(attrs.dict.find("dim")->second.c_str());
+    return out_shape.ProdShape(0, dim) == 1;
+});
 }  // namespace op
 }  // namespace mxnet

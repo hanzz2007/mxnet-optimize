@@ -459,6 +459,37 @@ inline bool SliceForwardInferStorageType(const nnvm::NodeAttrs& attrs,
   return true;
 }
 
+
+inline int64_t slice_offset(const TShape&data_shape, const TShape& begin, const TShape& end)
+{
+    CHECK_EQ(begin.ndim(), end.ndim());
+    CHECK_GE(data_shape.ndim(), begin.ndim());
+
+    size_t sdim = 0;
+
+    for (size_t i = 0; i < begin.ndim(); ++i) {
+        size_t slice_range = end[i] - begin[i];
+        if (slice_range != data_shape[i]) {
+            sdim = i;
+            break;
+        }
+    }
+
+    size_t leading = data_shape.ProdShape(0, sdim);
+    if (leading != 1) {
+        return -1;
+    }
+
+    for (size_t i = sdim + 1; i < end.ndim(); ++i) {
+        if (end[i] - begin[i] != data_shape[i]) {
+            return -1;
+        }
+    }
+
+    return static_cast<int64_t>(
+        data_shape.ProdShape(sdim + 1, data_shape.ndim()) * begin[sdim]);
+}
+
 // matrix crop for multi dimensional cropping: see also slice
 template<typename xpu>
 void Slice(const nnvm::NodeAttrs& attrs,
@@ -486,6 +517,8 @@ void Slice(const nnvm::NodeAttrs& attrs,
     end[i] = s + outputs[0].size(i);
   }
 
+  const auto offset = slice_offset(inputs[0].shape_, begin, end);
+
   Stream<xpu> *s = ctx.get_stream<xpu>();
   MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
     switch (inputs[0].ndim()) {
@@ -494,31 +527,41 @@ void Slice(const nnvm::NodeAttrs& attrs,
      case 1: {
       Tensor<xpu, 1, DType> in = inputs[0].get<xpu, 1, DType>(s);
       Tensor<xpu, 1, DType> out = outputs[0].get<xpu, 1, DType>(s);
-      out = slice(in, begin.get<1>(), end.get<1>());
+      if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
+          out = slice(in, begin.get<1>(), end.get<1>());
+      }
       break;
      }
      case 2: {
       Tensor<xpu, 2, DType> in = inputs[0].get<xpu, 2, DType>(s);
       Tensor<xpu, 2, DType> out = outputs[0].get<xpu, 2, DType>(s);
-      out = slice(in, begin.get<2>(), end.get<2>());
+      if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
+          out = slice(in, begin.get<2>(), end.get<2>());
+      }
       break;
      }
      case 3: {
       Tensor<xpu, 3, DType> in = inputs[0].get<xpu, 3, DType>(s);
       Tensor<xpu, 3, DType> out = outputs[0].get<xpu, 3, DType>(s);
-      out = slice(in, begin.get<3>(), end.get<3>());
+      if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
+          out = slice(in, begin.get<3>(), end.get<3>());
+      }
       break;
      }
      case 4: {
       Tensor<xpu, 4, DType> in = inputs[0].get<xpu, 4, DType>(s);
       Tensor<xpu, 4, DType> out = outputs[0].get<xpu, 4, DType>(s);
-      out = slice(in, begin.get<4>(), end.get<4>());
+      if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
+          out = slice(in, begin.get<4>(), end.get<4>());
+      }
       break;
      }
      case 5: {
       Tensor<xpu, 5, DType> in = inputs[0].get<xpu, 5, DType>(s);
       Tensor<xpu, 5, DType> out = outputs[0].get<xpu, 5, DType>(s);
-      out = slice(in, begin.get<5>(), end.get<5>());
+      if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
+          out = slice(in, begin.get<5>(), end.get<5>());
+      }
       break;
      }
      default:

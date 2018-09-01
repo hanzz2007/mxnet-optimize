@@ -43,9 +43,12 @@ inline void concatenate_helper(const std::vector<mshadow::Tensor<xpu, dim, DType
     mshadow::Tensor<xpu, dim, DType> out = *output;
     size_t size = input.size();
     index_t begin = 0;
+    const index_t trailing = out.shape_.ProdShape(cdim + 1, out.shape_.kDimension);
     for (index_t i = 0; i < size; ++i) {
       index_t end = begin + input[i].size(cdim);
-      Assign(slice<cdim>(out, begin, end), req, input[i]);
+      if (req != OpReqType::kWriteTo || out.dptr_ + begin * trailing != input[i].dptr_) {
+          Assign(slice<cdim>(out, begin, end), req, input[i]);
+      }
       begin = end;
     }
   } else {
@@ -78,9 +81,12 @@ void split_helper(const mshadow::Tensor<xpu, dim, DType> &input,
     std::vector<mshadow::Tensor<xpu, dim, DType> > out = *output;
     size_t size = out.size();
     index_t begin = 0;
+    const index_t trailing = input.shape_.ProdShape(cdim + 1, input.shape_.kDimension);
     for (index_t i = 0; i < size; ++i) {
       index_t end = begin + out[i].size(cdim);
-      Assign(out[i], req[i], slice<cdim>(input, begin, end));
+      if ((req[i] != OpReqType::kWriteTo) || (input.dptr_ + begin * trailing != out[i].dptr_)) {
+          Assign(out[i], req[i], slice<cdim>(input, begin, end));
+      }
       begin = end;
     }
   } else {
