@@ -117,9 +117,10 @@ NNVM_REGISTER_OP(SliceChannel).add_alias("split")
     const TShape data_shape = inputs[0];
     std::vector<int64_t> offset_vec(outputs.size(), -1);
 
-    const auto& axis = atoi(attrs.dict.at("axis").c_str());
+    SliceChannelParam param;
+    param.Init(attrs.dict);
 
-    size_t leading = data_shape.ProdShape(0, axis);
+    size_t leading = data_shape.ProdShape(0, param.axis);
     if (leading == 1) {
         size_t offset = 0;
         for (size_t i = 0; i < outputs.size(); ++i) {

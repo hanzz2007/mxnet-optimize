@@ -111,8 +111,9 @@ NNVM_REGISTER_OP(Concat)
 .set_attr<nnvm::FIsMemoryFusable>("FIsMemoryFusable", [](const nnvm::NodeAttrs& attrs, 
                            const nnvm::TShape& out_shape)
 {
-    const size_t dim = atoi(attrs.dict.find("dim")->second.c_str());
-    return out_shape.ProdShape(0, dim) == 1;
+    ConcatParam param;
+    param.Init(attrs.dict);
+    return out_shape.ProdShape(0, param.dim) == 1;
 });
 }  // namespace op
 }  // namespace mxnet

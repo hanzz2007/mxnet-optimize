@@ -187,7 +187,9 @@ class Lenet {
 //       gen_sym();
 //       gen_sym();
 
-      auto lenet = gen_sym4();
+      // auto lenet = gen_sym_resnet16();
+      auto lenet = gen_sym_inception_v3();
+
 //       Symbol conv3 = Convolution("conv3", pool2, conv3_w, conv3_b,
 //           Shape(2, 2), 500);
 //       Symbol tanh3 = Activation("tanh3", conv3, ActivationActType::kTanh);
@@ -205,9 +207,11 @@ class Lenet {
 
       /*setup basic configs*/
       int val_fold = 1;
-      int W = 28;
-      int H = 28;
-      int batch_size = 42;
+//       int W = 224;
+//       int H = 224;
+      int W = 299;
+      int H = 299;
+      int batch_size = 1;
       int max_epoch = 100000;
       float learning_rate = 1e-4;
       float weight_decay = 1e-4;
@@ -409,6 +413,74 @@ class Lenet {
       Symbol fc2 = FullyConnected(concat2, fc1_w, fc1_b, 100);
 
       return Symbol::Group({ fc1, fc2 });
+  }
+
+
+  Symbol gen_sym5()
+  {
+      Symbol data = Symbol::Variable("data");
+      Symbol data_label = Symbol::Variable("data_label");
+      Symbol conv1_w("conv1_w"), conv1_b("conv1_b");
+      Symbol conv2_w("conv2_w"), conv2_b("conv2_b");
+      Symbol conv3_w("conv3_w"), conv3_b("conv3_b");
+      Symbol fc1_w("fc1_w"), fc1_b("fc1_b");
+      Symbol fc2_w("fc2_w"), fc2_b("fc2_b");
+
+      Symbol conv1 =
+          Convolution("conv1", data, conv1_w, conv1_b, Shape(5, 5), 60);
+      Symbol tanh1 = Activation("tanh1", conv1, ActivationActType::kTanh);
+      Symbol pool1 = Pooling("pool1", tanh1, Shape(2, 2), PoolingPoolType::kMax,
+          false, false, PoolingPoolingConvention::kValid, Shape(2, 2));
+
+      Symbol sym_split = mxnet::cpp::SliceChannel(pool1, 6);
+      Symbol relu1 = mxnet::cpp::Activation(sym_split[1], ActivationActType::kRelu);
+      Symbol concat1 = Concat({ relu1, sym_split[2], sym_split[3] }, 3, 1);
+      Symbol concat2 = Concat({ sym_split[3], sym_split[4], sym_split[5] }, 3, 1);
+
+      Symbol fc1 = FullyConnected(concat1, fc1_w, fc1_b, 100);
+      Symbol fc2 = FullyConnected(concat2, fc1_w, fc1_b, 100);
+
+      return Symbol::Group({ fc1, fc2 });
+  }
+
+
+  Symbol gen_sym6()
+  {
+      Symbol data = Symbol::Variable("data");
+      Symbol data_label = Symbol::Variable("data_label");
+      Symbol conv1_w("conv1_w"), conv1_b("conv1_b");
+      Symbol conv2_w("conv2_w"), conv2_b("conv2_b");
+      Symbol conv3_w("conv3_w"), conv3_b("conv3_b");
+      Symbol fc1_w("fc1_w"), fc1_b("fc1_b");
+      Symbol fc2_w("fc2_w"), fc2_b("fc2_b");
+
+      Symbol conv1 =
+          Convolution("conv1", data, conv1_w, conv1_b, Shape(5, 5), 60);
+      Symbol tanh1 = Activation("tanh1", conv1, ActivationActType::kTanh);
+      Symbol pool1 = Pooling("pool1", tanh1, Shape(2, 2), PoolingPoolType::kMax,
+          false, false, PoolingPoolingConvention::kValid, Shape(2, 2));
+
+      Symbol sym_split = mxnet::cpp::SliceChannel(pool1, 6);
+      Symbol relu1 = mxnet::cpp::Activation(sym_split[1], ActivationActType::kRelu);
+      Symbol concat1 = Concat({ relu1, sym_split[2], sym_split[3] }, 3, 1);
+      Symbol softmax1 = softmax(concat1);
+      
+      Symbol concat2 = Concat({ sym_split[3], sym_split[4], sym_split[5] }, 3, 1);
+
+      Symbol fc1 = FullyConnected(softmax1, fc1_w, fc1_b, 100);
+      Symbol fc2 = FullyConnected(concat2, fc1_w, fc1_b, 100);
+
+      return Symbol::Group({ fc1, fc2 });
+  }
+
+  Symbol gen_sym_resnet16()
+  {
+      return Symbol::Load(R"(C:\Users\hanzz\resnet_16.json)");
+  }
+
+  Symbol gen_sym_inception_v3()
+  {
+      return Symbol::Load(R"(C:\Users\hanzz\inception_v3.json)");
   }
 
  private:
