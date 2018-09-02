@@ -272,10 +272,14 @@ class Lenet {
       for (const auto arg_name : args_map) {
           grad_req_map[arg_name.first] = kNullOp;
       }
-  Executor *exe = lenet.SimpleBind(ctx_dev, args_map, {}, grad_req_map);
-      auto arg_names = lenet.ListArguments();
-      exe->Forward(false);
-      NDArray::WaitAll();
+
+      Executor *exe = nullptr;
+      for (int i = 0; i < 100; ++i) {
+          exe = lenet.SimpleBind(ctx_dev, args_map, {}, grad_req_map);
+          auto arg_names = lenet.ListArguments();
+          exe->Forward(false);
+          NDArray::WaitAll();
+      }
       //     for (int ITER = 0; ITER < max_epoch; ++ITER) {
       //       size_t start_index = 0;
       //       while (start_index < train_num) {

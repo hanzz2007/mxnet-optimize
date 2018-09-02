@@ -416,6 +416,37 @@ Examples::
 .set_attr<nnvm::FInferType>("FInferType", ElemwiseType<1, 1>)
 .set_attr<FCompute>("FCompute<cpu>", SliceAxis<cpu>)
 .set_attr<nnvm::FGradient>("FGradient", ElemwiseGradUseNone{"_backward_slice_axis"})
+.set_attr<nnvm::FMemorySplit>("FMemorySplit", [](const nnvm::NodeAttrs& attrs,
+    const std::vector<nnvm::TShape>& inputs,
+    const std::vector<nnvm::TShape>& outputs)
+{
+    const TShape data_shape = inputs[0];
+    std::vector<int64_t> offset_vec(outputs.size(), -1);
+
+    const auto& param = dmlc::get<SliceAxisParam>(attrs.parsed);
+    index_t N = inputs[0].ndim();
+    TShape begin(N), end(N);
+    for (index_t i = 0; i < N; ++i) {
+        int s = 0;
+        if (param.axis == i) {
+            s = param.begin;
+            if (s < 0) {
+                s += data_shape[i];
+                CHECK(s >= 0)
+                    << "Invalid slicing begin " << param.begin << " and end "
+                    << param.end << " for data of shape " << data_shape;
+            }
+        }
+        else {
+            s = 0;
+        }
+        begin[i] = s;
+        end[i] = s + outputs[0][i];
+    }
+
+    offset_vec[0] = slice_offset(data_shape, begin, end);
+    return offset_vec;
+})
 .add_argument("data", "NDArray-or-Symbol", "Source input")
 .add_arguments(SliceAxisParam::__FIELDS__());
 

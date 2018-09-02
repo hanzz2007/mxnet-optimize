@@ -956,13 +956,32 @@ void SliceAxis(const nnvm::NodeAttrs& attrs,
   GetSliceAxisParams(param, inputs[0].shape_, &axis, &begin, &end);
   int ndim = static_cast<int>(outputs[0].ndim());
 
+  index_t N = inputs[0].ndim();
+  TShape begin_vec(N), end_vec(N);
+  for (index_t i = 0; i < N; ++i) {
+      int s = 0;
+      if (param.axis == i) {
+          begin_vec[i] = s;
+          end_vec[i] = s + outputs[0][i];
+          CHECK_EQ(end_vec[i], end);
+      }
+      else {
+          begin_vec[i] = s;
+          end_vec[i] = s + outputs[0][i];
+      }
+  }
+
+  int64_t offset = slice_offset(data_shape, begin_vec, end_vec);
+
   if (axis + 1 == ndim) {
     MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
         mshadow::Tensor<xpu, 2, DType> in =
             inputs[0].FlatTo2D<xpu, DType>(s);
         mshadow::Tensor<xpu, 2, DType> out =
             outputs[0].FlatTo2D<xpu, DType>(s);
-        ASSIGN_DISPATCH(out, req[0], slice<1>(in, begin, end));
+        if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
+            ASSIGN_DISPATCH(out, req[0], slice<1>(in, begin, end));
+        }
       });
   } else {
     MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
@@ -970,7 +989,9 @@ void SliceAxis(const nnvm::NodeAttrs& attrs,
             inputs[0].FlatTo3D<xpu, DType>(axis, s);
         mshadow::Tensor<xpu, 3, DType> out =
             outputs[0].FlatTo3D<xpu, DType>(axis, s);
-        ASSIGN_DISPATCH(out, req[0], slice<1>(in, begin, end));
+        if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
+            ASSIGN_DISPATCH(out, req[0], slice<1>(in, begin, end));
+        }
       });
   }
 }
