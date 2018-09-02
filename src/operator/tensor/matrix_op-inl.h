@@ -529,6 +529,10 @@ void Slice(const nnvm::NodeAttrs& attrs,
       Tensor<xpu, 1, DType> out = outputs[0].get<xpu, 1, DType>(s);
       if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
           out = slice(in, begin.get<1>(), end.get<1>());
+          std::cout << "slice offset=" << offset << std::endl;
+      }
+      else {
+          std::cout << "skip-slice offset=" << offset << std::endl;
       }
       break;
      }
@@ -537,6 +541,10 @@ void Slice(const nnvm::NodeAttrs& attrs,
       Tensor<xpu, 2, DType> out = outputs[0].get<xpu, 2, DType>(s);
       if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
           out = slice(in, begin.get<2>(), end.get<2>());
+          std::cout << "slice offset=" << offset << std::endl;
+      }
+      else {
+          std::cout << "skip-slice offset=" << offset << std::endl;
       }
       break;
      }
@@ -545,6 +553,10 @@ void Slice(const nnvm::NodeAttrs& attrs,
       Tensor<xpu, 3, DType> out = outputs[0].get<xpu, 3, DType>(s);
       if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
           out = slice(in, begin.get<3>(), end.get<3>());
+          std::cout << "slice offset=" << offset << std::endl;
+      }
+      else {
+          std::cout << "skip-slice offset=" << offset << std::endl;
       }
       break;
      }
@@ -553,6 +565,10 @@ void Slice(const nnvm::NodeAttrs& attrs,
       Tensor<xpu, 4, DType> out = outputs[0].get<xpu, 4, DType>(s);
       if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
           out = slice(in, begin.get<4>(), end.get<4>());
+          std::cout << "slice offset=" << offset << std::endl;
+      }
+      else {
+          std::cout << "skip-slice offset=" << offset << std::endl;
       }
       break;
      }
@@ -561,6 +577,10 @@ void Slice(const nnvm::NodeAttrs& attrs,
       Tensor<xpu, 5, DType> out = outputs[0].get<xpu, 5, DType>(s);
       if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
           out = slice(in, begin.get<5>(), end.get<5>());
+          std::cout << "slice offset=" << offset << std::endl;
+      }
+      else {
+          std::cout << "skip-slice offset=" << offset << std::endl;
       }
       break;
      }
@@ -962,16 +982,16 @@ void SliceAxis(const nnvm::NodeAttrs& attrs,
       int s = 0;
       if (param.axis == i) {
           begin_vec[i] = s;
-          end_vec[i] = s + outputs[0][i];
+          end_vec[i] = s + outputs[0].shape_[i];
           CHECK_EQ(end_vec[i], end);
       }
       else {
           begin_vec[i] = s;
-          end_vec[i] = s + outputs[0][i];
+          end_vec[i] = s + outputs[0].shape_[i];
       }
   }
 
-  int64_t offset = slice_offset(data_shape, begin_vec, end_vec);
+  int64_t offset = slice_offset(inputs[0].shape_, begin_vec, end_vec);
 
   if (axis + 1 == ndim) {
     MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
@@ -980,7 +1000,11 @@ void SliceAxis(const nnvm::NodeAttrs& attrs,
         mshadow::Tensor<xpu, 2, DType> out =
             outputs[0].FlatTo2D<xpu, DType>(s);
         if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
+            std::cout << "sliceaxis axis=" << axis << std::endl;
             ASSIGN_DISPATCH(out, req[0], slice<1>(in, begin, end));
+        }
+        else {
+            std::cout << "skip-sliceaxis axis=" << axis << std::endl;
         }
       });
   } else {
