@@ -495,10 +495,14 @@ class Lenet {
       Symbol pool1 = Pooling("pool1", tanh1, Shape(2, 2), PoolingPoolType::kMax,
           false, false, PoolingPoolingConvention::kValid, Shape(2, 2));
 
-      Symbol sym_split = mxnet::cpp::slice_axis(pool1, 2, 20, dmlc::optional<int>(30));
+      Symbol sym_split = mxnet::cpp::slice_axis(pool1, 1, 0, dmlc::optional<int>(20));
+      Symbol sym_split2 = mxnet::cpp::slice_axis(pool1,1, 30, dmlc::optional<int>(40));
+      Symbol sym_split3 = mxnet::cpp::slice_axis(pool1,1, 40, dmlc::optional<int>(50));
+
       Symbol relu1 = mxnet::cpp::Activation(sym_split, ActivationActType::kRelu);
-//       Symbol concat1 = Concat({ relu1, sym_split[2], sym_split[3] }, 3, 1);
-      Symbol softmax1 = softmax(relu1);
+ //      Symbol concat1 = Concat({ relu1, sym_split3, sym_split2 }, 3, 1);
+       Symbol concat1 = Concat({ sym_split3, sym_split2, relu1 }, 3, 1);
+      Symbol softmax1 = softmax(concat1);
 
 //       Symbol concat2 = Concat({ sym_split[3], sym_split[4], sym_split[5] }, 3, 1);
 
