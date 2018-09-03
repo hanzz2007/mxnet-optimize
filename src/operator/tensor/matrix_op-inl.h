@@ -981,8 +981,10 @@ void SliceAxis(const nnvm::NodeAttrs& attrs,
   for (index_t i = 0; i < N; ++i) {
       int s = 0;
       if (param.axis == i) {
+          s = begin;
           begin_vec[i] = s;
           end_vec[i] = s + outputs[0].shape_[i];
+          //           std::cout << s << " " << outputs[0].shape_;
           CHECK_EQ(end_vec[i], end);
       }
       else {
@@ -1000,11 +1002,11 @@ void SliceAxis(const nnvm::NodeAttrs& attrs,
         mshadow::Tensor<xpu, 2, DType> out =
             outputs[0].FlatTo2D<xpu, DType>(s);
         if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
-            std::cout << "sliceaxis axis=" << axis << std::endl;
+            std::cout << "sliceaxis axis=" << axis << " offset=" << offset << std::endl;
             ASSIGN_DISPATCH(out, req[0], slice<1>(in, begin, end));
         }
         else {
-            std::cout << "skip-sliceaxis axis=" << axis << std::endl;
+            std::cout << "skip-sliceaxis axis=" << axis << " offset=" << offset << std::endl;
         }
       });
   } else {
@@ -1014,7 +1016,11 @@ void SliceAxis(const nnvm::NodeAttrs& attrs,
         mshadow::Tensor<xpu, 3, DType> out =
             outputs[0].FlatTo3D<xpu, DType>(axis, s);
         if (offset < 0 || out.dptr_ != in.dptr_ + offset) {
+            std::cout << "sliceaxis axis=" << axis << " offset=" << offset << std::endl;
             ASSIGN_DISPATCH(out, req[0], slice<1>(in, begin, end));
+        }
+        else {
+            std::cout << "skip-sliceaxis axis=" << axis << " offset=" << offset << std::endl;
         }
       });
   }
