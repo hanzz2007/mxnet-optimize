@@ -27,6 +27,7 @@
 #include "mxnet-cpp/MxNetCpp.h"
 // Allow IDE to parse the types
 #include "../include/mxnet-cpp/op.h"
+#include <chrono>
 
 using namespace std;
 using namespace mxnet::cpp;
@@ -189,7 +190,8 @@ class Lenet {
 
       // auto lenet = gen_sym_resnet16();
 //       auto lenet = gen_sym_inception_v3();
-      auto lenet = gen_sym7();
+//       auto lenet = gen_sym_inception_v3();
+      auto lenet = gen_sym_densenet_121();
 
 //       Symbol conv3 = Convolution("conv3", pool2, conv3_w, conv3_b,
 //           Shape(2, 2), 500);
@@ -210,8 +212,8 @@ class Lenet {
       int val_fold = 1;
 //       int W = 224;
 //       int H = 224;
-      int W = 299;
-      int H = 299;
+      int W = 1200;
+      int H = 2000;
       int batch_size = 1;
       int max_epoch = 100000;
       float learning_rate = 1e-4;
@@ -224,8 +226,13 @@ class Lenet {
       const float *lptr = label_vec.data();
 
       Context ctx_gpu(DeviceType::kCPU, 0);
-      NDArray data_array = NDArray(Shape(data_count, 1, W, H), ctx_gpu,
+//       NDArray data_array = NDArray(Shape(data_count, 1, W, H), ctx_gpu,
+//           false);  // store in main memory, and copy to
+
+      NDArray data_array = NDArray(Shape(data_count, 3, 512, 512), ctx_gpu,
           false);  // store in main memory, and copy to
+
+
 // device memory while training
       NDArray label_array =
           NDArray(Shape(data_count), ctx_gpu,
@@ -275,12 +282,23 @@ class Lenet {
       }
       
       Executor *exe = nullptr;
+      exe = lenet.SimpleBind(ctx_dev, args_map, {}, grad_req_map);
+      auto arg_names = lenet.ListArguments();
+
       for (int i = 0; i < 1; ++i) {
-          exe = lenet.SimpleBind(ctx_dev, args_map, {}, grad_req_map);
-          auto arg_names = lenet.ListArguments();
           exe->Forward(false);
           NDArray::WaitAll();
       }
+
+      auto beg_time = std::chrono::high_resolution_clock::now();
+      for (int i = 0; i < 50; ++i) {
+          exe->Forward(false);
+          NDArray::WaitAll();
+      }
+      auto end_time = std::chrono::high_resolution_clock::now();
+
+      std::cout << "COST: " << std::chrono::duration_cast<std::chrono::seconds>(end_time - beg_time).count() << std::endl;
+
       //     for (int ITER = 0; ITER < max_epoch; ++ITER) {
       //       size_t start_index = 0;
       //       while (start_index < train_num) {
@@ -521,7 +539,10 @@ class Lenet {
   {
       return Symbol::Load(R"(C:\Users\hanzz\inception_v3.json)");
   }
-
+  Symbol gen_sym_densenet_121()
+  {
+      return Symbol::Load(R"(C:\Users\hanzz\densenet121-symbol.json)");
+  }
  private:
   Context ctx_cpu;
   Context ctx_dev;
