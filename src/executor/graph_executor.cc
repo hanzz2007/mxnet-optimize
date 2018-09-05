@@ -867,6 +867,7 @@ void GraphExecutor::FinishInitGraph(nnvm::Symbol symbol,
     g.attrs["storage"] = std::make_shared<dmlc::any>(std::move(arg_storage_id));
 
     std::string plan_memory_type = dmlc::GetEnv<std::string>("MXNET_PLAN_MEMORY_TYPE", "PlanMemoryFused");
+    LOG(INFO) << "*** Apply memory plan: " << plan_memory_type;
     g = nnvm::ApplyPass(g, plan_memory_type);
   }
   g = DetectInplaceAddTo(g);

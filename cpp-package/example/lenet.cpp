@@ -97,7 +97,7 @@ class Lenet {
     const float *dptr = data_vec.data();
     const float *lptr = label_vec.data();
 
-    Context ctx_gpu(DeviceType::kGPU, 0);
+    Context ctx_gpu(DeviceType::kCPU, 0);
     NDArray data_array = NDArray(Shape(data_count, 1, W, H), ctx_gpu,
                                  false);  // store in main memory, and copy to
     // device memory while training
@@ -284,20 +284,23 @@ class Lenet {
       Executor *exe = nullptr;
       exe = lenet.SimpleBind(ctx_dev, args_map, {}, grad_req_map);
       auto arg_names = lenet.ListArguments();
-
+      
+      std::cout << "HOT BODY ++++++++++++++" << std::endl;
       for (int i = 0; i < 1; ++i) {
           exe->Forward(false);
           NDArray::WaitAll();
       }
+      std::cout << "HOT BODY -------------" << std::endl;
 
       auto beg_time = std::chrono::high_resolution_clock::now();
-      for (int i = 0; i < 50; ++i) {
+      for (int i = 0; i < 10; ++i) {
+          std::cout << "ITER: " << i << " +++++++++++++++" << std::endl;
           exe->Forward(false);
           NDArray::WaitAll();
       }
       auto end_time = std::chrono::high_resolution_clock::now();
 
-      std::cout << "COST: " << std::chrono::duration_cast<std::chrono::seconds>(end_time - beg_time).count() << std::endl;
+      std::cout << "COST: " << std::chrono::duration_cast<std::chrono::microseconds>(end_time - beg_time).count() << std::endl;
 
       //     for (int ITER = 0; ITER < max_epoch; ++ITER) {
       //       size_t start_index = 0;
